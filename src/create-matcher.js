@@ -16,12 +16,22 @@ export type Matcher = {
   getRoutes: () => Array<RouteRecord>;
 };
 
+/**
+ * 根据传入的配置对象 创建路由映射表
+ * @param routes 传入的配置数组
+ * @param router VueRouter实例
+ * @returns {{match: match, addRoutes: addRoutes}}
+ */
 export function createMatcher (
   routes: Array<RouteConfig>,
   router: VueRouter
 ): Matcher {
   const { pathList, pathMap, nameMap } = createRouteMap(routes)
 
+  /**
+   * 动态添加路由
+   * @param routes 路由配置，
+   */
   function addRoutes (routes) {
     createRouteMap(routes, pathList, pathMap, nameMap)
   }
@@ -48,6 +58,12 @@ export function createMatcher (
     return pathList.map(path => pathMap[path])
   }
 
+  /**
+   * 添加路由匹配（ ./history/base.js 文件 transitionTo 方法调用）
+   * @param raw
+   * @param currentRoute
+   * @param redirectedFrom
+   */
   function match (
     raw: RawLocation,
     currentRoute?: Route,
@@ -175,6 +191,13 @@ export function createMatcher (
     return _createRoute(null, location)
   }
 
+  /**
+   * 创建路由
+   * @param record 路由映射表
+   * @param location
+   * @param redirectedFrom
+   * @returns {*}
+   */
   function _createRoute (
     record: ?RouteRecord,
     location: Location,
@@ -197,6 +220,13 @@ export function createMatcher (
   }
 }
 
+/**
+ * 是否与指定的路由匹配
+ * @param regex
+ * @param path
+ * @param params
+ * @returns {boolean} 是否匹配
+ */
 function matchRoute (
   regex: RouteRegExp,
   path: string,
@@ -221,6 +251,12 @@ function matchRoute (
   return true
 }
 
+/**
+ * 处理当前 redirect 的 path 相对 路由映射表 record 的路径
+ * @param path
+ * @param record
+ * @returns {string}
+ */
 function resolveRecordPath (path: string, record: RouteRecord): string {
   return resolvePath(path, record.parent ? record.parent.path : '/', true)
 }

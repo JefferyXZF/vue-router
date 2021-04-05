@@ -4,6 +4,13 @@ import Regexp from 'path-to-regexp'
 import { cleanPath } from './util/path'
 import { assert, warn } from './util/warn'
 
+/**
+ * 根据 routes 配置对象创建路由表
+ * @param routes 配置对象
+ * @param oldPathList 存储所有路由配置的 path
+ * @param oldPathMap path <=> 路由记录 映射表
+ * @param oldNameMap name <=> 路由记录 映射表
+ */
 export function createRouteMap (
   routes: Array<RouteConfig>,
   oldPathList?: Array<string>,
@@ -22,11 +29,13 @@ export function createRouteMap (
   // $flow-disable-line
   const nameMap: Dictionary<RouteRecord> = oldNameMap || Object.create(null)
 
+  // 遍历配置对象的 routes 配置，为每个路由配置添加路由记录
   routes.forEach(route => {
     addRouteRecord(pathList, pathMap, nameMap, route, parentRoute)
   })
 
   // ensure wildcard routes are always at the end
+  // 确保通配符在 pathList 数组中最后一项
   for (let i = 0, l = pathList.length; i < l; i++) {
     if (pathList[i] === '*') {
       pathList.push(pathList.splice(i, 1)[0])
@@ -54,6 +63,15 @@ export function createRouteMap (
   }
 }
 
+/**
+ * 遍历配置对象的 routes 配置，为每个路由配置添加路由记录
+ * @param pathList 已解析的path的列表
+ * @param pathMap 用 path 作为key保存路由记录项
+ * @param nameMap 用 name 作为key保存路由记录项
+ * @param route 单个路由配置项
+ * @param parent 父级路由配置
+ * @param matchAs 路由配置的 children 项的某一项路由配置的 path（层级子级）：初始不传
+ */
 function addRouteRecord (
   pathList: Array<string>,
   pathMap: Dictionary<RouteRecord>,
@@ -83,13 +101,13 @@ function addRouteRecord (
 
   const pathToRegexpOptions: PathToRegexpOptions =
     route.pathToRegexpOptions || {}
-  const normalizedPath = normalizePath(path, parent, pathToRegexpOptions.strict)
+  const normalizedPath = normalizePath(path, parent, pathToRegexpOptions.strict) // 规范化路由配置的 path 项
 
-  if (typeof route.caseSensitive === 'boolean') {
+  if (typeof route.caseSensitive === 'boolean') { // 是否区分大小写
     pathToRegexpOptions.sensitive = route.caseSensitive
   }
 
-  const record: RouteRecord = {
+  const record: RouteRecord = { // 创建路由记录对象
     path: normalizedPath,
     regex: compileRouteRegex(normalizedPath, pathToRegexpOptions),
     components: route.components || { default: route.component },
@@ -114,6 +132,7 @@ function addRouteRecord (
           : { default: route.props }
   }
 
+  // 如果路由配置含有 children 配置项，则循环添加路由记录
   if (route.children) {
     // Warn if route is named, does not redirect and has a default child route.
     // If users navigate to this route by name, the default child will
@@ -149,6 +168,7 @@ function addRouteRecord (
     pathMap[record.path] = record
   }
 
+  // 路由配置中有alias的情况
   if (route.alias !== undefined) {
     const aliases = Array.isArray(route.alias) ? route.alias : [route.alias]
     for (let i = 0; i < aliases.length; ++i) {
@@ -190,6 +210,11 @@ function addRouteRecord (
   }
 }
 
+/**
+ * 对路由配置的 path 项编译解析（存在动态路由）
+ * @param path
+ * @param pathToRegexpOptions
+ */
 function compileRouteRegex (
   path: string,
   pathToRegexpOptions: PathToRegexpOptions
@@ -208,6 +233,13 @@ function compileRouteRegex (
   return regex
 }
 
+/**
+ * 规范化路由配置的 path 项
+ * @param path 当前path
+ * @param parent 父级路由配置
+ * @param strict 路由配置 route.pathToRegexpOptions.strict
+ * @returns {*}
+ */
 function normalizePath (
   path: string,
   parent?: RouteRecord,

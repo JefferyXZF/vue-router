@@ -39,25 +39,29 @@ export default class VueRouter {
   afterHooks: Array<?AfterNavigationHook>
 
   constructor (options: RouterOptions = {}) {
-    this.app = null
-    this.apps = []
-    this.options = options
-    this.beforeHooks = []
-    this.resolveHooks = []
-    this.afterHooks = []
-    this.matcher = createMatcher(options.routes || [], this)
+    this.app = null // vue实例
+    this.apps = [] // 存放正在被使用的组件（vue实例），只有destroyed掉的组件，才会从这里移除）
+    this.options = options // vueRouter实例化时，传来的参数，也就是router.js中配置项的内容
+    this.beforeHooks = [] // 存放各组件的全局beforeEach钩子
+    this.resolveHooks = [] // 存放各组件的全局beforeResolve钩子
+    this.afterHooks = [] // 存放各组件的全局afterEach钩子
+    // 创建 match 匹配函数
+    this.matcher = createMatcher(options.routes || [], this) // 由createMatcher生成的matcher，里面有一些匹配相关方法
 
+    // 根据 mode 实例化具体的 History
     let mode = options.mode || 'hash'
     this.fallback =
       mode === 'history' && !supportsPushState && options.fallback !== false
     if (this.fallback) {
       mode = 'hash'
     }
+    // 若不在浏览器环境下，强制使用abstract模式
     if (!inBrowser) {
       mode = 'abstract'
     }
     this.mode = mode
 
+    // 不同模式，使用对应模式Histroty管理器去管理history
     switch (mode) {
       case 'history':
         this.history = new HTML5History(this, options.base)
@@ -75,14 +79,17 @@ export default class VueRouter {
     }
   }
 
+  // 输入参数raw，current，redirectedFrom，结果返回匹配route
   match (raw: RawLocation, current?: Route, redirectedFrom?: Location): Route {
     return this.matcher.match(raw, current, redirectedFrom)
   }
 
+  // 获取当前history.current，也就是当前route，包括path、component、meta等。
   get currentRoute (): ?Route {
     return this.history && this.history.current
   }
 
+  // install 方法会调用此 init 初始化方法，在 Vue.use 里面调用
   init (app: any /* Vue component instance */) {
     process.env.NODE_ENV !== 'production' &&
       assert(
@@ -91,10 +98,12 @@ export default class VueRouter {
           `before creating root instance.`
       )
 
+    // 将vue实例推到apps列表中，install里面最初是将vue根实例推进去的
     this.apps.push(app)
 
     // set up app destroyed handler
     // https://github.com/vuejs/vue-router/issues/2639
+    // app被destroyed时候，会$emit ‘hook:destroyed’事件，监听这个事件，执行下面方法
     app.$once('hook:destroyed', () => {
       // clean out app from this.apps array once destroyed
       const index = this.apps.indexOf(app)
@@ -108,10 +117,13 @@ export default class VueRouter {
 
     // main app previously initialized
     // return as we don't need to set up new history listener
+    /* 已存在说明已经被init过了，直接返回 */
     if (this.app) {
       return
     }
 
+    // 新增一个history，并添加route监听器
+    // 并根据不同路由模式进行跳转。hashHistory需要监听hashchange和popshate两个事件，而html5History监听popstate事件。
     this.app = app
 
     const history = this.history
@@ -130,10 +142,10 @@ export default class VueRouter {
         history.setupListeners()
         handleInitialScroll(routeOrError)
       }
-      history.transitionTo(
-        history.getCurrentLocation(),
-        setupListeners,
-        setupListeners
+      history.transitionTo( // 做路由过渡
+        history.getCurrentLocation(), // 浏览器 window 地址的 hash 值
+        setupListeners, // 成功回调
+        setupListeners // 失败回调
       )
     }
 
@@ -144,14 +156,17 @@ export default class VueRouter {
     })
   }
 
+  // 注册 beforeHooks 事件，将回调方法fn注册到beforeHooks里。registerHook会返回，fn执行后的callback方法，功能是将fn从beforeHooks删除。
   beforeEach (fn: Function): Function {
     return registerHook(this.beforeHooks, fn)
   }
 
+  // 将回调方法fn注册到resolveHooks里。registerHook会返回，fn执行后的callback方法，功能是将fn从resolveHooks删除。
   beforeResolve (fn: Function): Function {
     return registerHook(this.resolveHooks, fn)
   }
 
+  // 将回调方法fn注册到afterHooks里。registerHook会返回，fn执行后的callback方法，功能是将fn从afterHooks删除。
   afterEach (fn: Function): Function {
     return registerHook(this.afterHooks, fn)
   }
@@ -164,6 +179,7 @@ export default class VueRouter {
     this.history.onError(errorCb)
   }
 
+  // 调用 transitionTo 跳转路由。新增路由跳转
   push (location: RawLocation, onComplete?: Function, onAbort?: Function) {
     // $flow-disable-line
     if (!onComplete && !onAbort && typeof Promise !== 'undefined') {
@@ -175,6 +191,7 @@ export default class VueRouter {
     }
   }
 
+  // 路由替换
   replace (location: RawLocation, onComplete?: Function, onAbort?: Function) {
     // $flow-disable-line
     if (!onComplete && !onAbort && typeof Promise !== 'undefined') {
@@ -198,6 +215,7 @@ export default class VueRouter {
     this.go(1)
   }
 
+  // 根据路径或者路由获取匹配的组件
   getMatchedComponents (to?: RawLocation | Route): Array<any> {
     const route: any = to
       ? to.matched
@@ -217,6 +235,13 @@ export default class VueRouter {
     )
   }
 
+  /**
+   * 根据路由对象返回浏览器路径等信息
+   * @param to 要跳转的路由
+   * @param current 当前路由
+   * @param append
+   * @returns {{route: Route, location: {path, query, _normalized, hash}, href: *, normalizedTo: {path, query, _normalized, hash}, resolved: Route}}
+   */
   resolve (
     to: RawLocation,
     current?: Route,
@@ -256,6 +281,10 @@ export default class VueRouter {
     }
   }
 
+  /**
+   * 动态添加路由
+   * @param routes 路由配置
+   */
   addRoutes (routes: Array<RouteConfig>) {
     if (process.env.NODE_ENV !== 'production') {
       warn(false, 'router.addRoutes() is deprecated and has been removed in Vue Router 4. Use router.addRoute() instead.')
@@ -267,6 +296,12 @@ export default class VueRouter {
   }
 }
 
+/**
+ * 注册指定钩子函数
+ * @param list
+ * @param fn
+ * @returns {Function}
+ */
 function registerHook (list: Array<any>, fn: Function): Function {
   list.push(fn)
   return () => {
@@ -275,6 +310,13 @@ function registerHook (list: Array<any>, fn: Function): Function {
   }
 }
 
+/**
+ * 创建页面 href 链接
+ * @param base
+ * @param fullPath
+ * @param mode
+ * @returns {string}
+ */
 function createHref (base: string, fullPath: string, mode) {
   var path = mode === 'hash' ? '#' + fullPath : fullPath
   return base ? cleanPath(base + '/' + path) : path

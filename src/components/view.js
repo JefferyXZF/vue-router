@@ -4,6 +4,7 @@ import { handleRouteEntered } from '../util/route'
 
 export default {
   name: 'RouterView',
+  // 使组件无状态 (没有 data ) 和无实例 (没有 this 上下文)。他们用一个简单的 render 函数返回虚拟节点使他们更容易渲染
   functional: true,
   props: {
     name: {
@@ -17,6 +18,7 @@ export default {
 
     // directly use parent context's createElement() function
     // so that components rendered by router-view can resolve named slots
+    // 直接用parent 的 createElement() 函数
     const h = parent.$createElement
     const name = props.name
     const route = parent.$route

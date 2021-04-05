@@ -85,6 +85,11 @@ export class HTML5History extends History {
   }
 }
 
+/**
+ * 根据 base 获取浏览器 window 地址
+ * @param base
+ * @returns {string} pathname + search + hash
+ */
 export function getLocation (base: string): string {
   let path = window.location.pathname
   if (base && path.toLowerCase().indexOf(base.toLowerCase()) === 0) {
